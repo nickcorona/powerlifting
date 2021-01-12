@@ -5,18 +5,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from category_encoders import (OneHotEncoder,  # sometimes appropriate
-                               OrdinalEncoder)
-from dirty_cat import \
-    TargetEncoder  # for encoding "dirty" categoricals; often outperforms one-hot encoding; sometimes worth trying
-from dirty_cat import SimilarityEncoder
-from numpy.core.fromnumeric import mean
 from sklearn.model_selection import train_test_split
 from statsmodels.nonparametric.smoothers_lowess import lowess
 
 from helpers import encode_dates, loguniform, preprocess
 
-df = pd.read_csv(r"data\divorce_data.csv", parse_dates=[], index_col=[], delimiter=";")
+df = pd.read_csv(
+    r"data\openpowerlifting.csv",
+    parse_dates=[],
+    index_col=[],
+    delimiter=",",
+    low_memory=False,
+)
 
 print(
     pd.concat([df.dtypes, df.nunique() / len(df)], axis=1)
@@ -26,8 +26,10 @@ print(
 
 ENCODE = False
 CATEGORIZE = True
-y = df["Divorce"]
-df = df.drop("Divorce", axis=1)
+TARGET = "TotalKg"
+y = df[TARGET]
+df = df.drop(TARGET, axis=1)
+
 X = preprocess(df, ENCODE, 5, True)
 sns.kdeplot(y)
 plt.title("KDE distribution")
@@ -309,4 +311,5 @@ lgb.plot_importance(model, grid=False, max_num_features=20, importance_type="gai
 plt.show()
 
 from sklearn.metrics import accuracy_score
-accuracy_score(yv, model.predict(Xv, num_iteration=model.best_iteration)>0.5)
+
+accuracy_score(yv, model.predict(Xv, num_iteration=model.best_iteration) > 0.5)
