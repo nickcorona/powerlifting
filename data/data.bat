@@ -1,1 +1,1 @@
-kaggle datasets download -d andrewmvd/divorce-prediction
+kaggle datasets download -d open-powerlifting/powerlifting-database
