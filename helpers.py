@@ -22,27 +22,26 @@ def encode_dates(df, column):
     return df
 
 
-def preprocess(X, encode, n_prototypes, train):
+def similarity_encode(X, encode_columns, n_prototypes, train, drop_original):
     X = X.copy()
-    if encode:
-        encode_columns = []
-        if train:
-            enc = SimilarityEncoder(
-                similarity="ngram", categories="k-means", n_prototypes=n_prototypes
-            )
-            enc.fit(X[encode_columns].values)
-            Path("encoders").mkdir(exist_ok=True)
-            pd.to_pickle(enc, "encoders/similarity_encoder.pickle")
-        else:
-            enc = pd.read_pickle("encoders/similarity_encoder.pickle")
-        transformed_values = enc.transform(X[encode_columns].values)
+    if train:
+        enc = SimilarityEncoder(
+            similarity="ngram", categories="k-means", n_prototypes=n_prototypes
+        )
+        enc.fit(X[encode_columns].values)
+        Path("encoders").mkdir(exist_ok=True)
+        pd.to_pickle(enc, "encoders/similarity_encoder.pickle")
+    else:
+        enc = pd.read_pickle("encoders/similarity_encoder.pickle")
+    transformed_values = enc.transform(X[encode_columns].values)
 
-        transformed_values = pd.DataFrame(transformed_values, index=X.index)
-        transformed_columns = []
-        for col in encode_columns:
-            for i in range(0, n_prototypes):
-                transformed_columns.append(col + "_" + str(i))
-        transformed_values.columns = transformed_columns
-        X = pd.concat([X, transformed_values], axis=1)
+    transformed_values = pd.DataFrame(transformed_values, index=X.index)
+    transformed_columns = []
+    for col in encode_columns:
+        for i in range(0, n_prototypes):
+            transformed_columns.append(col + "_" + str(i))
+    transformed_values.columns = transformed_columns
+    X = pd.concat([X, transformed_values], axis=1)
+    if drop_original:
         X = X.drop(encode_columns, axis=1)
     return X

@@ -1,5 +1,5 @@
 import lightgbm as lgb
-from helpers import preprocess
+from helpers import similarity_encode
 import pandas as pd
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -9,7 +9,7 @@ df = pd.read_csv(
     parse_dates=[],
     index_col=[],
 )
-X, y = preprocess(df, encode=False, categorize=True, preran=False)
+X, y = similarity_encode(df, encode=False, categorize=True, preran=False)
 X = X.drop("rain", axis=1)
 d = lgb.Dataset(X, y, silent=True)
 

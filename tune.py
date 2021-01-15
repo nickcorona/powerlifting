@@ -8,11 +8,11 @@ import seaborn as sns
 from sklearn.model_selection import train_test_split
 from statsmodels.nonparametric.smoothers_lowess import lowess
 
-from helpers import encode_dates, loguniform, preprocess
+from helpers import encode_dates, loguniform, similarity_encode
 
 df = pd.read_csv(
     r"data\openpowerlifting.csv",
-    parse_dates=[],
+    parse_dates=["Date"],
     index_col=[],
     delimiter=",",
     low_memory=False,
@@ -26,11 +26,60 @@ print(
 
 ENCODE = False
 CATEGORIZE = True
-TARGET = "TotalKg"
-y = df[TARGET]
-df = df.drop(TARGET, axis=1)
+TARGET = "Place"
+y = df[TARGET].replace('DQ', 121).astype(int)
+X = df.drop(
+    [
+        TARGET,
+        "Place",
+    ],
+    axis=1,
+)
 
-X = preprocess(df, ENCODE, 5, True)
+unique_plus_classes = set()
+for val in X["WeightClassKg"].astype(str):
+    if val[-1] == "+":
+        unique_plus_classes.add(val)
+float_unique_plus_classes = []
+for weightclass in unique_plus_classes:
+    try:
+        weightclass = float(weightclass[:-1])
+    except ValueError:
+        weightclass = 0
+    float_unique_plus_classes.append(weightclass)
+
+X["WeightClassKg"] = (
+    X["WeightClassKg"]
+    .replace(
+        unique_plus_classes,
+        float_unique_plus_classes,
+    )
+    .astype(float)
+)
+X = encode_dates(X, 'Date')
+
+obj_cols = X.select_dtypes("object").columns
+nunique = X[obj_cols].nunique()
+prop_unique = (X[obj_cols].nunique() / len(df)).sort_values(
+    ascending=False
+)  # in order of most unique to least
+unique = pd.concat([prop_unique, nunique], axis=1)
+unique.columns = [
+    "proportion",
+    "nunique",
+]
+unique
+
+X = similarity_encode(
+    X,
+    encode_columns=["Name", "MeetName", "Division", "Federation"],
+    n_prototypes=5,
+    train=True,
+    drop_original=False,
+)
+
+X[obj_cols] = X[obj_cols].astype('category')
+
 sns.kdeplot(y)
 plt.title("KDE distribution")
 plt.show()
@@ -48,8 +97,8 @@ Xs, ys = Xt.loc[sample_idx], yt.loc[sample_idx]
 ds = lgb.Dataset(Xs, ys)
 dv = lgb.Dataset(Xv, yv, free_raw_data=False)
 
-OBJECTIVE = "binary"
-METRIC = "binary_logloss"
+OBJECTIVE = "multiclass"
+METRIC = "multi_logloss"
 MAXIMIZE = False
 EARLY_STOPPING_ROUNDS = 10
 MAX_ROUNDS = 10000
@@ -60,7 +109,8 @@ params = {
     "metric": METRIC,
     "verbose": -1,
     "n_jobs": 6,
-    "tweedie_variance_power": 1.3,
+    "num_classes":
+    # "tweedie_variance_power": 1.3,
 }
 
 model = lgb.train(
